@@ -1,0 +1,22 @@
+{
+  "name": "gatsby-orion-source-plugin",
+  "version": "1.0.0",
+  "description": "A source plugin to fetch data from Orion",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo \"No build script setup\""
+  },
+  "keywords": [
+    "gatsby",
+    "gatsby-plugin"
+  ],
+  "author": "Labsbh <tech@labsbh.io>",
+  "license": "private",
+  "dependencies": {
+    "axios": "^0.24.0",
+    "dotenv": "^10.0.0",
+    "gatsby-source-filesystem": "^4.2.0",
+    "qs": "^6.10.1"
+  }
+}
