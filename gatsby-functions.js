@@ -30,12 +30,12 @@ if (process.env.PROXY_HOST && process.env.PROXY_PORT) {
 const get = (endpoint, params = {}) =>
     axios.get(`${entrypoint}${endpoint}`, {
         params,
-        headers: {
+        headers:          {
             ...REQUEST_DEFAULT_HEADERS,
             Authorization: `Bearer ${getToken()}`,
         },
         paramsSerializer: (params) => qs.stringify(params),
-        httpsAgent: new https.Agent({
+        httpsAgent:       new https.Agent({
             rejectUnauthorized: false,
         }),
         proxy,
@@ -56,10 +56,12 @@ const fetchPictures = async (rentals) => {
         rentals.map(async (rental) => {
             try {
                 rental.pictures = await getAll(`${rental['@id']}/pictures`, {
-                    perPage: 10,
-                    groups: ['website:picture:output', 'website:mediaObject:output'],
+                    perPage: 1,
+                    groups:  ['website:picture:output', 'website:mediaObject:output'],
                 });
-            } catch (e) {}
+            } catch (e) {
+                console.log(e);
+            }
 
             return rental;
         }),
@@ -69,12 +71,16 @@ const fetchPictures = async (rentals) => {
 const fetchPrices = async (rentals) => {
     await Promise.all(
         rentals.map(async (rental) => {
-            rental.prices = await getAll(`${rental['@id']}/prices`, {
-                perPage: 30,
-                groups: ['website:price:output'],
-            });
+            try {
+                rental.prices = await getAll(`${rental['@id']}/prices`, {
+                    perPage: 30,
+                    groups:  ['website:price:output'],
+                });
 
-            return rental;
+                return rental;
+            } catch (e) {
+                console.log(e);
+            }
         }),
     );
 };
@@ -110,7 +116,8 @@ const fetchRooms = async (rentals) => {
                 rental.rooms = await getAll(`${rental['@id']}/rooms`, {
                     groups: ['website:room:output'],
                 });
-            } catch (e) {}
+            } catch (e) {
+            }
 
             return rental;
         }),
@@ -132,7 +139,7 @@ const getAll = async (endpoint, params = {}) => {
         if (view && view['hydra:last']) {
             const matches = view['hydra:last'].match(/[&|?]page=(\d+)/i);
             if (matches && matches[1]) {
-                lastPage = Math.min(matches[1], process.env.NODE_ENV === 'development' && endpoint === '/rentals' ? 1 : matches[1]);
+                lastPage = Math.min(matches[1], (process.env.NODE_ENV === 'development' && endpoint === '/rentals') || endpoint === '/pictures' ? 2 : matches[1]);
             }
         }
         page++;

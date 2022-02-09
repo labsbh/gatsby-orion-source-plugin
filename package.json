@@ -1,6 +1,6 @@
 {
   "name": "gatsby-orion-source-plugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A source plugin to fetch data from Orion",
   "main": "index.js",
   "scripts": {

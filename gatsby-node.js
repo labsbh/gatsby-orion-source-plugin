@@ -91,7 +91,7 @@ exports.sourceNodes = async (
         beds,
         furnishings,
         highlights,
-        locales,
+        userLocales: locales,
         locations,
         pois,
         roomTypes,
@@ -107,7 +107,7 @@ exports.sourceNodes = async (
                 parent:   null,
                 children: [],
                 internal: {
-                    type,
+                    type:          'Locale' === type ? 'UserLocale' : type,
                     content:       JSON.stringify(item),
                     contentDigest: createContentDigest(item),
                 },
@@ -142,8 +142,8 @@ exports.sourceNodes = async (
 
         return createNode({
             ...item,
-            highlights:         (item.highlights || []),
-            rooms:         (item.rooms || []),
+            highlights:       (item.highlights || []),
+            rooms:            (item.rooms || []),
             pictures:         (pictures || []).map((picture) => picture.picture['@id']),
             mainPicture:      (pictures || [])[0]?.picture?.['@id'],
             hasSpecialOffers: item.specialOffers.length > 0,
@@ -164,15 +164,20 @@ exports.onCreateNode = async ({ node, actions: { createNode, createNodeField }, 
         process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
     }
     if (node.internal.type === 'RentalPicture') {
-        const fileNode = await createRemoteFileNode({
-            url:          encodeURI(node.contentUrl.replace('api.orion.wip', '127.0.0.1:8000')),
-            parentNodeId: node.id,
-            createNode,
-            createNodeId,
-            getCache,
-        });
-        if (fileNode) {
-            createNodeField({ node, name: 'remoteFile', value: fileNode.id });
+        try {
+            const fileNode = await createRemoteFileNode({
+                url:          encodeURI(node.contentUrl.replace('api.orion.wip', '127.0.0.1:8000').replace('https', 'http')),
+                parentNodeId: node.id,
+                createNode,
+                createNodeId,
+                getCache,
+            });
+
+            if (fileNode) {
+                createNodeField({ node, name: 'remoteFile', value: fileNode.id });
+            }
+        } catch (e) {
+            console.log(e);
         }
     }
 };
@@ -288,7 +293,7 @@ exports.createSchemaCustomization = ({ actions, schema }) => {
             },
         }),
         schema.buildObjectType({
-            name:       'Locale',
+            name:       'UserLocale',
             interfaces: ['Node'],
             fields:     {
                 id:   {
@@ -567,6 +572,9 @@ exports.createSchemaCustomization = ({ actions, schema }) => {
                 published:           {
                     type: 'Boolean'
                 },
+                managed:           {
+                    type: 'Boolean'
+                },
                 rentalType:          {
                     type: 'String'
                 },
@@ -586,7 +594,7 @@ exports.createSchemaCustomization = ({ actions, schema }) => {
                     type: 'Float'
                 },
                 highlights:          {
-                    type: '[Highlight]',
+                    type:    '[Highlight]',
                     resolve: (source, _args, context) => {
                         return context.nodeModel.getNodesByIds({
                             ids:  source.highlights,
@@ -649,7 +657,7 @@ exports.createSchemaCustomization = ({ actions, schema }) => {
                     type:    'RentalPicture',
                     resolve: (source, _args, context) => {
                         return context.nodeModel.getNodeById({
-                            id:  source.pictures[0],
+                            id:   source.mainPicture,
                             type: 'RentalPicture',
                         });
                     }
@@ -675,10 +683,10 @@ exports.createSchemaCustomization = ({ actions, schema }) => {
                 remoteFile: {
                     type:    'File',
                     resolve: (source, _args, context) => {
-                        return context.nodeModel.getNodeById({
+                        return source.fields ? context.nodeModel.getNodeById({
                             id:   source.fields.remoteFile,
                             type: 'File',
-                        });
+                        }) : null;
                     }
                 },
             },
