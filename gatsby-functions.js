@@ -27,12 +27,13 @@ if (process.env.PROXY_HOST && process.env.PROXY_PORT) {
     proxy = undefined;
 }
 
-const get = (endpoint, params = {}) =>
+const get = (endpoint, params = {}, headers = {}) =>
     axios.get(`${entrypoint}${endpoint}`, {
         params,
         headers:          {
             ...REQUEST_DEFAULT_HEADERS,
             Authorization: `Bearer ${getToken()}`,
+            ...headers,
         },
         paramsSerializer: (params) => qs.stringify(params),
         httpsAgent:       new https.Agent({
@@ -58,6 +59,8 @@ const fetchPictures = async (rentals) => {
                 rental.pictures = await getAll(`${rental['@id']}/pictures`, {
                     perPage: 1,
                     groups:  ['website:picture:output', 'website:mediaObject:output'],
+                }, {
+                    'WITH-SHARED': rental.pullPictures ? '1' : '0',
                 });
             } catch (e) {
                 console.log(e);
@@ -75,6 +78,8 @@ const fetchPrices = async (rentals) => {
                 rental.prices = await getAll(`${rental['@id']}/prices`, {
                     perPage: 30,
                     groups:  ['website:price:output'],
+                }, {
+                    'WITH-SHARED': rental.pullPrices ? '1' : '0',
                 });
 
                 return rental;
@@ -90,6 +95,8 @@ const fetchPoi = async (rentals) => {
         rentals.map(async (rental) => {
             rental.pointOfInterests = await getAll(`${rental['@id']}/point_of_interests`, {
                 groups: ['website:rentalPoi:output'],
+            }, {
+                'WITH-SHARED': rental.pullLocation ? '1' : '0',
             });
 
             return rental;
@@ -115,6 +122,8 @@ const fetchRooms = async (rentals) => {
             try {
                 rental.rooms = await getAll(`${rental['@id']}/rooms`, {
                     groups: ['website:room:output'],
+                }, {
+                    'WITH-SHARED': rental.pullRooms ? '1' : '0',
                 });
             } catch (e) {
             }
@@ -124,7 +133,7 @@ const fetchRooms = async (rentals) => {
     );
 };
 
-const getAll = async (endpoint, params = {}) => {
+const getAll = async (endpoint, params = {}, headers = {}) => {
     const allResults = [];
     let page = 1;
     let lastPage = 1;
@@ -134,7 +143,7 @@ const getAll = async (endpoint, params = {}) => {
         } = await get(endpoint, {
             ...params,
             page: page,
-        });
+        }, headers);
 
         if (view && view['hydra:last']) {
             const matches = view['hydra:last'].match(/[&|?]page=(\d+)/i);

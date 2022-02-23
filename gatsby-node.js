@@ -3,7 +3,6 @@
 require('dotenv').config({
     path: `.env.${process.env.NODE_ENV}`,
 });
-const { createRemoteFileNode } = require('gatsby-source-filesystem');
 const {
     get,
     getAll,
@@ -42,9 +41,17 @@ exports.sourceNodes = async (
     });
 
     console.log('Fetching seasons');
-    const seasons = await getAll('/seasons', {
+    const internalSeasons = await getAll('/seasons', {
         groups: ['website:season:output'],
     });
+
+    const externalSeasons = await getAll('/seasons', {
+        groups: ['website:season:output'],
+    }, {
+        'WITH-SHARED': '1',
+    });
+
+    const seasons = [...internalSeasons, ...externalSeasons];
 
     console.log('Fetching pois');
     const pois = await getAll('/point_of_interests', {
@@ -159,26 +166,9 @@ exports.sourceNodes = async (
     });
 };
 
-exports.onCreateNode = async ({ node, actions: { createNode, createNodeField }, createNodeId, getCache }) => {
+exports.onCreateNode = async () => {
     if (process.env.NODE_ENV === 'development') {
         process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
-    }
-    if (node.internal.type === 'RentalPicture') {
-        try {
-            const fileNode = await createRemoteFileNode({
-                url:          encodeURI(node.contentUrl.replace('api.orion.wip', '127.0.0.1:8000').replace('https', 'http')),
-                parentNodeId: node.id,
-                createNode,
-                createNodeId,
-                getCache,
-            });
-
-            if (fileNode) {
-                createNodeField({ node, name: 'remoteFile', value: fileNode.id });
-            }
-        } catch (e) {
-            console.log(e);
-        }
     }
 };
 
@@ -572,7 +562,7 @@ exports.createSchemaCustomization = ({ actions, schema }) => {
                 published:           {
                     type: 'Boolean'
                 },
-                managed:           {
+                managed:             {
                     type: 'Boolean'
                 },
                 rentalType:          {
@@ -629,6 +619,24 @@ exports.createSchemaCustomization = ({ actions, schema }) => {
                 hasSpecialOffers:    {
                     type: 'Boolean',
                 },
+                pullPlanning:    {
+                    type: 'Boolean',
+                },
+                pullPrices:    {
+                    type: 'Boolean',
+                },
+                pullPictures:    {
+                    type: 'Boolean',
+                },
+                pullRooms:    {
+                    type: 'Boolean',
+                },
+                pullLocation:    {
+                    type: 'Boolean',
+                },
+                pullInfos:    {
+                    type: 'Boolean',
+                },
                 bedroomCount:        {
                     type: 'Int'
                 },
@@ -679,15 +687,6 @@ exports.createSchemaCustomization = ({ actions, schema }) => {
                 },
                 contentUrl: {
                     type: 'String',
-                },
-                remoteFile: {
-                    type:    'File',
-                    resolve: (source, _args, context) => {
-                        return source.fields ? context.nodeModel.getNodeById({
-                            id:   source.fields.remoteFile,
-                            type: 'File',
-                        }) : null;
-                    }
                 },
             },
         })
